@@ -1,21 +1,58 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function POST(request) {
   try {
-    const res = await fetch('https://s7k4.vercel.app/api/predictions?user=cwelowiecki', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      },
-      next: { revalidate: 30 }
-    });
+    const { bets } = await request.json(); // Pobiera historię zakładów z s7k4
 
-    if (!res.ok) {
-      return NextResponse.json({ success: false });
+    if (!bets || !Array.isArray(bets)) {
+      return NextResponse.json({ success: false, error: "Brak danych" }, { status: 400 });
     }
 
-    const data = await res.json();
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    let totalGains = 0;
+    let totalLosses = 0;
+    let wins = 0;
+    let losses = 0;
+    let currentStreak = 0;
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
+
+    bets.forEach(bet => {
+      const pnl = Number(bet.pnl || bet.profit || 0);
+      if (pnl > 0) {
+        totalGains += pnl;
+        wins++;
+        currentStreak = currentStreak > 0 ? currentStreak + 1 : 1;
+        if (currentStreak > maxWinStreak) maxWinStreak = currentStreak;
+      } else if (pnl < 0) {
+        totalLosses += Math.abs(pnl);
+        losses++;
+        currentStreak = currentStreak < 0 ? currentStreak - 1 : -1;
+        if (Math.abs(currentStreak) > maxLossStreak) maxLossStreak = Math.abs(currentStreak);
+      }
+    });
+
+    const totalBets = wins + losses;
+    const netProfit = totalGains - totalLosses;
+    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) + "%" : "0%";
+    const totalVolume = totalGains + totalLosses;
+    const roi = totalVolume > 0 ? ((netProfit / totalVolume) * 100).toFixed(1) + "%" : "0%";
+
+    return NextResponse.json({
+      success: true,
+      stats: {
+        totalProfit: (netProfit >= 0 ? "+" : "") + (netProfit / 1000).toFixed(1) + "K",
+        winRate,
+        roi,
+        totalBets: totalBets.toString(),
+        totalGains: "+" + (totalGains / 1000).toFixed(1) + "K",
+        totalLosses: "-" + (totalLosses / 1000).toFixed(1) + "K",
+        avgBet: totalBets > 0 ? ((totalGains + totalLosses) / totalBets / 1000).toFixed(1) + "K" : "0K",
+        winStreak: maxWinStreak.toString(),
+        lossStreak: maxLossStreak.toString(),
+        wonLost: `${wins} / ${losses}`
+      }
+    });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
