@@ -3,41 +3,37 @@
 import React, { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [data, setData] = useState(null);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchLiveStats() {
+    async function loadStats() {
       try {
         const res = await fetch('/api/stats');
         const json = await res.json();
-        if (json.success && json.data) {
-          setData(json.data);
+        if (json.success && json.stats) {
+          setStats(json.stats);
         }
       } catch (e) {
-        console.error("Błąd pobierania danych z API:", e);
+        console.error("Błąd pobierania statystyk:", e);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchLiveStats();
-    const interval = setInterval(fetchLiveStats, 30000);
-    return () => clearInterval(interval);
+    loadStats();
   }, []);
 
   const statsList = [
-    { label: "Win Rate", value: data?.winRate || "64.6%", change: "+2.1%", positive: true },
-    { label: "ROI", value: data?.roi || "13.0%", change: "+0.5%", positive: true },
-    { label: "Total Bets", value: data?.totalBets || "489", change: "ogółem", neutral: true },
-    { label: "Total Gains", value: data?.totalGains || "+1.3M", change: "wygrane", positive: true },
-    { label: "Total Losses", value: data?.totalLosses || "-794.3K", change: "przegrane", positive: false },
-    { label: "Avg Bet Size", value: data?.avgBet || "7.6K", change: "średni zakład", neutral: true },
-    { label: "Avg Win", value: data?.avgWin || "+4.0K", change: "śr. wygrana", positive: true },
-    { label: "Avg Loss", value: data?.avgLoss || "-4.7K", change: "śr. przegrana", positive: false },
-    { label: "Win Streak", value: data?.winStreak || "14", change: "rekord", positive: true },
-    { label: "Loss Streak", value: data?.lossStreak || "5", change: "seria", neutral: true },
-    { label: "Won / Lost", value: data?.wonLost || "316 / 169", change: "stosunek", neutral: true },
+    { label: "Win Rate", value: stats?.winRate || "0%", change: "wygrane", positive: true },
+    { label: "ROI", value: stats?.roi || "0%", change: "zwrot", positive: true },
+    { label: "Total Bets", value: stats?.totalBets || "0", change: "ogółem", neutral: true },
+    { label: "Total Gains", value: stats?.totalGains || "0K", change: "wygrane", positive: true },
+    { label: "Total Losses", value: stats?.totalLosses || "0K", change: "przegrane", positive: false },
+    { label: "Avg Bet Size", value: stats?.avgBet || "0K", change: "średni zakład", neutral: true },
+    { label: "Win Streak", value: stats?.winStreak || "0", change: "rekord", positive: true },
+    { label: "Loss Streak", value: stats?.lossStreak || "0", change: "seria", neutral: true },
+    { label: "Won / Lost", value: stats?.wonLost || "0 / 0", change: "stosunek", neutral: true },
   ];
 
   return (
@@ -59,10 +55,10 @@ export default function Home() {
         }}>
           <div>
             <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#a855f7' }}>
-              {data?.username || "cwelowiecki"}
+              NajwiekszyGyat
             </h1>
             <p style={{ color: '#a1a1aa', fontSize: '14px', marginTop: '4px', margin: 0 }}>
-              Kick ID: <span style={{ color: '#e4e4e7' }}>{data?.kickId || "9532684"}</span>
+              Profil Kick / s7k4
             </p>
           </div>
           <div style={{
@@ -74,7 +70,7 @@ export default function Home() {
           }}>
             <span style={{ fontSize: '12px', color: '#a1a1aa', display: 'block' }}>Total Profit/Loss</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#22c55e' }}>
-              {loading ? "Ładowanie..." : (data?.totalProfit || "+481.9K")}
+              {loading ? "Ładowanie..." : (stats?.totalProfit || "0K")}
             </span>
           </div>
         </header>
