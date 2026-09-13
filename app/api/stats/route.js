@@ -1,11 +1,29 @@
 import { NextResponse } from 'next/server';
 
+// Obsługa zapytania CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(request) {
   try {
-    const { bets } = await request.json(); // Pobiera historię zakładów z s7k4
+    const { bets } = await request.json();
 
     if (!bets || !Array.isArray(bets)) {
-      return NextResponse.json({ success: false, error: "Brak danych" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Brak danych" },
+        { 
+          status: 400,
+          headers: { 'Access-Control-Allow-Origin': '*' }
+        }
+      );
     }
 
     let totalGains = 0;
@@ -51,8 +69,20 @@ export async function POST(request) {
         lossStreak: maxLossStreak.toString(),
         wonLost: `${wins} / ${losses}`
       }
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
     });
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { 
+        status: 500,
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      }
+    );
   }
 }
