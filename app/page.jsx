@@ -7,27 +7,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch("/api/stats");
-        if (!res.ok) {
-          throw new Error("Błąd podczas pobierania danych");
-        }
-        const data = await res.json();
-        if (data.success && data.stats) {
-          setStats(data.stats);
-        } else {
-          throw new Error(data.error || "Brak dostępnych statystyk");
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchLiveStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stats", { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error("Nie udało się pobrać statystyk na żywo.");
       }
+      const data = await res.json();
+      if (data.success && data.stats) {
+        setStats(data.stats);
+      } else {
+        throw new Error(data.error || "Brak danych z API");
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    fetchStats();
+  useEffect(() => {
+    fetchLiveStats();
   }, []);
 
   if (loading) {
@@ -35,7 +37,7 @@ export default function DashboardPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <p className="mt-4 text-slate-400">Ładowanie statystyk...</p>
+          <p className="mt-4 text-slate-400">Pobieranie najświeższych statystyk z API...</p>
         </div>
       </div>
     );
@@ -47,10 +49,10 @@ export default function DashboardPage() {
         <div className="rounded-lg border border-red-500/30 bg-red-950/20 p-6 text-center">
           <p className="text-red-400">Błąd: {error}</p>
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={fetchLiveStats} 
             className="mt-4 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500"
           >
-            Spróbuj ponownie
+            Odśwież dane
           </button>
         </div>
       </div>
@@ -60,11 +62,19 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white md:p-12">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 border-b border-slate-800 pb-4">
-          <h1 className="text-3xl font-bold tracking-tight text-purple-400">
-            Dashboard Statystyk
-          </h1>
-          <p className="text-sm text-slate-400">Podsumowanie wyników z zakładów</p>
+        <header className="mb-8 flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-purple-400">
+              Dashboard Statystyk
+            </h1>
+            <p className="text-sm text-slate-400">Dane pobierane na żywo z API Predictions</p>
+          </div>
+          <button
+            onClick={fetchLiveStats}
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium hover:bg-purple-500 transition-colors"
+          >
+            🔄 Odśwież API
+          </button>
         </header>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -74,8 +84,8 @@ export default function DashboardPage() {
             color={stats.totalProfit?.startsWith("+") ? "text-green-400" : "text-red-400"} 
           />
           <StatCard 
-            title="Całkowity Obrót (Wagered)" 
-            value={stats.totalGains || stats.totalWagered} 
+            title="Suma Wygranych (Gains)" 
+            value={stats.totalGains} 
             color="text-purple-400" 
           />
           <StatCard 
@@ -84,13 +94,13 @@ export default function DashboardPage() {
             color="text-blue-400" 
           />
           <StatCard 
-            title="Punkty / Saldo" 
-            value={stats.wonLost || stats.totalPoints} 
+            title="Wygrane / Przegrane" 
+            value={stats.wonLost} 
             color="text-yellow-400" 
           />
           <StatCard 
             title="Średnia Stawka" 
-            value={stats.avgBet || "N/A"} 
+            value={stats.avgBet} 
           />
           <StatCard 
             title="ROI" 
@@ -99,10 +109,6 @@ export default function DashboardPage() {
           <StatCard 
             title="Liczba Zakładów" 
             value={stats.totalBets} 
-          />
-          <StatCard 
-            title="Win / Loss Streak" 
-            value={`${stats.winStreak || 0} / ${stats.lossStreak || 0}`} 
           />
         </div>
       </div>
