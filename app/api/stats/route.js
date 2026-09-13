@@ -13,37 +13,51 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     const USER_ID = '62122525';
-    let allPredictions = [];
-    let offset = 0;
-    const limit = 100;
-    let hasMore = true;
-    let detectedUsername = 'NajwiekszyGyat'; // Domyślna nazwa z Twojego konta na Kicku
+    let allPredictionsMap = new Map(); // Mapa zapobiega dublowaniu zakładów
+    let detectedUsername = 'NajwiekszyGyat';
 
-    while (hasMore) {
-      const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
-      const res = await fetch(externalApiUrl, { cache: 'no-store' });
+    // Pobieramy zakłady ze wszystkich możliwych statusów, aby mieć 100% pewności
+    const statuses = ['resolved', 'all'];
 
-      if (!res.ok) throw new Error(`Błąd API s7k4: status ${res.status}`);
+    for (const status of statuses) {
+      let offset = 0;
+      const limit = 100;
+      let hasMore = true;
 
-      const data = await res.json();
-      const predictions = data.predictions || [];
+      while (hasMore) {
+        const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=${status}&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
+        const res = await fetch(externalApiUrl, { cache: 'no-store' });
 
-      if (predictions.length > 0) {
-        // Próbujemy wyciągnąć nazwę użytkownika z pierwszego zakłady
-        const sampleBet = predictions.find(p => p.userBet?.username || p.userBet?.user?.username);
-        if (sampleBet) {
-          detectedUsername = sampleBet.userBet.username || sampleBet.userBet.user?.username || detectedUsername;
+        if (!res.ok) break;
+
+        const data = await res.json();
+        const predictions = data.predictions || [];
+
+        if (predictions.length > 0) {
+          predictions.forEach((p) => {
+            if (p.userBet) {
+              // Unikalny klucz zakładu (id lub timestamp + kwota)
+              const betKey = p.id || p._id || `${p.created_at}_${p.userBet.pointsBet}`;
+              allPredictionsMap.set(betKey, p);
+
+              if (p.userBet.username || p.userBet.user?.username) {
+                detectedUsername = p.userBet.username || p.userBet.user?.username;
+              }
+            }
+          });
+
+          offset += limit;
+          if (predictions.length < limit) hasMore = false;
+        } else {
+          hasMore = false;
         }
 
-        allPredictions = allPredictions.concat(predictions);
-        offset += limit;
-        if (predictions.length < limit) hasMore = false;
-      } else {
-        hasMore = false;
+        // Zabezpieczenie przed pętlą (pobiera do 10 000 zakładów)
+        if (offset >= 10000) hasMore = false;
       }
-
-      if (offset >= 5000) hasMore = false;
     }
+
+    const allPredictions = Array.from(allPredictionsMap.values());
 
     const sortedBets = allPredictions
       .filter((p) => p.userBet)
@@ -117,7 +131,7 @@ export async function GET() {
       totalProfit: formatNum(netProfit),
       netProfitRaw: netProfit,
       winRate: winRate + '%',
-      roi: (roi >= 0 ? roi : roi) + '%',
+      roi: roi + '%',
       totalBets: totalBets.toString(),
       totalGains: formatNum(totalGains),
       totalLosses: '-' + formatNum(totalLossesAmount).replace('+', '').replace('-', ''),
