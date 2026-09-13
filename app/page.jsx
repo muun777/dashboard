@@ -6,19 +6,19 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [timeframe, setTimeframe] = useState("All"); // 1D, 7D, 30D, All
+  const [timeframe, setTimeframe] = useState("All");
 
   const fetchLiveStats = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/stats", { cache: "no-store" });
-      if (!res.ok) throw new Error("Nie udało się pobrać danych z API.");
+      if (!res.ok) throw new Error("Błąd pobierania danych z serwera.");
       const data = await res.json();
       if (data.success && data.stats) {
         setStats(data.stats);
       } else {
-        throw new Error(data.error || "Brak danych z API");
+        throw new Error(data.error || "Brak danych");
       }
     } catch (err) {
       setError(err.message);
@@ -31,7 +31,6 @@ export default function DashboardPage() {
     fetchLiveStats();
   }, []);
 
-  // Filtrowanie punktów wykresu zależnie od wybranego zakresu czasowego
   const filteredChartData = useMemo(() => {
     if (!stats?.chartData || stats.chartData.length === 0) return [];
     if (timeframe === "All") return stats.chartData;
@@ -48,24 +47,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0d0914] text-white">
-        <div className="text-center">
-          <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#8b5cf6] border-t-transparent"></div>
-          <p className="mt-4 font-medium text-slate-400">Pobieranie zakładek na żywo...</p>
-        </div>
+      <div style={{ backgroundColor: '#0e0919', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#a78bfa', fontSize: '18px', fontWeight: 'bold' }}>Ładowanie danych z konta...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0d0914] text-white">
-        <div className="rounded-xl border border-red-500/30 bg-red-950/30 p-8 text-center backdrop-blur-md">
-          <p className="text-lg font-semibold text-red-400">Błąd: {error}</p>
-          <button
-            onClick={fetchLiveStats}
-            className="mt-4 rounded-lg bg-purple-600 px-6 py-2.5 font-medium text-white transition-all hover:bg-purple-500"
-          >
+      <div style={{ backgroundColor: '#0e0919', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ backgroundColor: '#181028', border: '1px solid #ef4444', padding: '24px', borderRadius: '12px', textAlign: 'center' }}>
+          <p style={{ color: '#f87171' }}>Błąd: {error}</p>
+          <button onClick={fetchLiveStats} style={{ marginTop: '16px', backgroundColor: '#7c3aed', color: '#fff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>
             Spróbuj ponownie
           </button>
         </div>
@@ -73,60 +66,75 @@ export default function DashboardPage() {
     );
   }
 
+  const containerStyle = {
+    backgroundColor: '#0d0818',
+    color: '#ffffff',
+    minHeight: '100vh',
+    padding: '24px',
+    fontFamily: 'sans-serif'
+  };
+
+  const cardStyle = {
+    backgroundColor: '#160e28',
+    borderRadius: '16px',
+    border: '1px solid rgba(139, 92, 246, 0.25)',
+    padding: '20px',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
+  };
+
   return (
-    <main className="min-h-screen bg-[#0d0914] p-4 text-white sm:p-6 lg:p-10 font-sans">
-      <div className="mx-auto max-w-7xl space-y-4">
+    <div style={containerStyle}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        {/* Header User Box */}
-        <div className="rounded-2xl border border-purple-900/30 bg-[#161026] p-6 shadow-2xl">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">{stats.username}</h1>
-          <p className="mt-1 text-sm font-medium text-purple-400/80">Kick ID: {stats.kickId}</p>
+        {/* Profil nagłówek */}
+        <div style={cardStyle}>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', margin: 0, color: '#ffffff' }}>{stats.username}</h1>
+          <p style={{ fontSize: '14px', color: '#a78bfa', marginTop: '4px', margin: 0 }}>Kick ID: {stats.kickId}</p>
         </div>
 
-        {/* Top Big Cards Row */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <BigCard
-            title="TOTAL PROFIT/LOSS"
-            value={stats.totalProfit}
-            color={stats.netProfitRaw >= 0 ? "text-[#22c55e]" : "text-[#ef4444]"}
-          />
-          <BigCard title="WIN RATE" value={stats.winRate} color="text-white" />
-          <BigCard title="ROI" value={stats.roi} color="text-white" />
-          <BigCard title="TOTAL BETS" value={stats.totalBets} color="text-white" />
+        {/* Główne Kafelki */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          <BigCard title="TOTAL PROFIT/LOSS" value={stats.totalProfit} color={stats.netProfitRaw >= 0 ? "#22c55e" : "#ef4444"} cardStyle={cardStyle} />
+          <BigCard title="WIN RATE" value={stats.winRate} color="#ffffff" cardStyle={cardStyle} />
+          <BigCard title="ROI" value={stats.roi} color="#ffffff" cardStyle={cardStyle} />
+          <BigCard title="TOTAL BETS" value={stats.totalBets} color="#ffffff" cardStyle={cardStyle} />
         </div>
 
-        {/* Middle Stats Row 1 */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SmallCard title="TOTAL GAINS" value={stats.totalGains} color="text-[#22c55e]" />
-          <SmallCard title="TOTAL LOSSES" value={stats.totalLosses} color="text-[#ef4444]" />
-          <SmallCard title="AVG BET SIZE" value={stats.avgBetSize} color="text-white" />
-          <SmallCard title="AVG WIN" value={stats.avgWin} color="text-[#22c55e]" />
+        {/* Małe Kafelki Rząd 1 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          <SmallCard title="TOTAL GAINS" value={stats.totalGains} color="#22c55e" cardStyle={cardStyle} />
+          <SmallCard title="TOTAL LOSSES" value={stats.totalLosses} color="#ef4444" cardStyle={cardStyle} />
+          <SmallCard title="AVG BET SIZE" value={stats.avgBetSize} color="#ffffff" cardStyle={cardStyle} />
+          <SmallCard title="AVG WIN" value={stats.avgWin} color="#22c55e" cardStyle={cardStyle} />
         </div>
 
-        {/* Middle Stats Row 2 */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SmallCard title="AVG LOSS" value={stats.avgLoss} color="text-[#ef4444]" />
-          <SmallCard title="WIN STREAK" value={stats.winStreak} color="text-white" />
-          <SmallCard title="LOSS STREAK" value={stats.lossStreak} color="text-white" />
-          <SmallCard title="WON/LOST" value={stats.wonLost} color="text-white" />
+        {/* Małe Kafelki Rząd 2 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          <SmallCard title="AVG LOSS" value={stats.avgLoss} color="#ef4444" cardStyle={cardStyle} />
+          <SmallCard title="WIN STREAK" value={stats.winStreak} color="#ffffff" cardStyle={cardStyle} />
+          <SmallCard title="LOSS STREAK" value={stats.lossStreak} color="#ffffff" cardStyle={cardStyle} />
+          <SmallCard title="WON/LOST" value={stats.wonLost} color="#ffffff" cardStyle={cardStyle} />
         </div>
 
-        {/* Cumulative PnL Chart Box */}
-        <div className="rounded-2xl border border-purple-900/30 bg-[#161026] p-6 shadow-2xl">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold tracking-wide text-slate-200">Cumulative PnL</h2>
-
-            {/* Timeframe Buttons */}
-            <div className="flex items-center gap-1 rounded-xl bg-[#0d0914] p-1 border border-purple-900/40">
+        {/* Sekcja Wykresu */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: '#e2e8f0' }}>Cumulative PnL</h2>
+            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#0d0818', padding: '4px', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
               {["1D", "7D", "30D", "All"].map((tf) => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
-                  className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
-                    timeframe === tf
-                      ? "bg-[#8b5cf6] text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  style={{
+                    backgroundColor: timeframe === tf ? '#7c3aed' : 'transparent',
+                    color: timeframe === tf ? '#ffffff' : '#94a3b8',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
                 >
                   {tf}
                 </button>
@@ -134,43 +142,37 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* SVG PnL Line Chart */}
-          <div className="h-72 w-full">
+          <div style={{ height: '260px', width: '100%' }}>
             <PnLChart data={filteredChartData} />
           </div>
         </div>
 
       </div>
-    </main>
-  );
-}
-
-function BigCard({ title, value, color }) {
-  return (
-    <div className="rounded-2xl border border-purple-900/30 bg-[#161026] p-6 shadow-xl transition-all hover:border-purple-700/50">
-      <p className="text-xs font-bold uppercase tracking-widest text-purple-300/60">{title}</p>
-      <p className={`mt-3 text-4xl font-black tracking-tight ${color}`}>{value}</p>
     </div>
   );
 }
 
-function SmallCard({ title, value, color }) {
+function BigCard({ title, value, color, cardStyle }) {
   return (
-    <div className="rounded-2xl border border-purple-900/30 bg-[#161026] p-5 shadow-lg transition-all hover:border-purple-700/50">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-purple-300/60">{title}</p>
-      <p className={`mt-2 text-xl font-bold ${color}`}>{value}</p>
+    <div style={cardStyle}>
+      <p style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', color: '#a78bfa', opacity: 0.7, margin: 0 }}>{title}</p>
+      <p style={{ fontSize: '32px', fontWeight: '900', color: color, margin: '8px 0 0 0' }}>{value}</p>
     </div>
   );
 }
 
-// Komponent dynamicznego wykresu liniowego z gradientem SVG
+function SmallCard({ title, value, color, cardStyle }) {
+  return (
+    <div style={cardStyle}>
+      <p style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px', color: '#a78bfa', opacity: 0.7, margin: 0 }}>{title}</p>
+      <p style={{ fontSize: '20px', fontWeight: 'bold', color: color, margin: '6px 0 0 0' }}>{value}</p>
+    </div>
+  );
+}
+
 function PnLChart({ data }) {
   if (!data || data.length < 2) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-slate-500">
-        Za mało danych do wygenerowania wykresu dla tego zakresu.
-      </div>
-    );
+    return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Brak wystarczającej liczby punktów do wykresu.</div>;
   }
 
   const pnlValues = data.map((d) => d.pnl);
@@ -179,8 +181,8 @@ function PnLChart({ data }) {
   const range = maxPnL - minPnL || 1;
 
   const width = 800;
-  const height = 260;
-  const padding = 20;
+  const height = 240;
+  const padding = 10;
 
   const points = data.map((d, index) => {
     const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
@@ -190,42 +192,19 @@ function PnLChart({ data }) {
 
   const pathD = `M ${points.join(" L ")}`;
   const areaD = `${pathD} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
-
   const lastPnL = data[data.length - 1]?.pnl || 0;
   const lineColor = lastPnL >= 0 ? "#22c55e" : "#ef4444";
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
       <defs>
-        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={lineColor} stopOpacity="0.35" />
+        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.4" />
           <stop offset="100%" stopColor={lineColor} stopOpacity="0.0" />
         </linearGradient>
       </defs>
-
-      {/* Tło gradientu pod linią */}
-      <path d={areaD} fill="url(#chartGradient)" />
-
-      {/* Linia wykresu */}
-      <path
-        d={pathD}
-        fill="none"
-        stroke={lineColor}
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Ostatni punkt z efektem świecenia */}
-      {data.length > 0 && (
-        <circle
-          cx={points[points.length - 1].split(",")[0]}
-          cy={points[points.length - 1].split(",")[1]}
-          r="5"
-          fill={lineColor}
-          className="animate-pulse"
-        />
-      )}
+      <path d={areaD} fill="url(#chartGrad)" />
+      <path d={pathD} fill="none" stroke={lineColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
