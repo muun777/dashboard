@@ -1,36 +1,40 @@
 import { NextResponse } from 'next/server';
 
-// Przechowywanie statystyk w pamięci serwera
 let cachedStats = null;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    headers: corsHeaders,
   });
 }
 
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    stats: cachedStats
-  }, {
-    headers: { 'Access-Control-Allow-Origin': '*' }
-  });
+  return NextResponse.json(
+    { success: true, stats: cachedStats },
+    { headers: corsHeaders }
+  );
 }
 
 export async function POST(request) {
   try {
-    const { bets } = await request.json();
+    const body = await request.json();
+    let bets = body.bets || body;
 
-    if (!bets || !Array.isArray(bets)) {
+    if (!Array.isArray(bets)) {
+      bets = bets.predictions || bets.data || bets.history || [];
+    }
+
+    if (!bets || bets.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Brak danych" },
-        { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+        { success: false, error: "Brak historii zakładów" },
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -42,8 +46,17 @@ export async function POST(request) {
     let maxWinStreak = 0;
     let maxLossStreak = 0;
 
-    bets.forEach(bet => {
-      const pnl = Number(bet.pnl || bet.profit || 0);
+    bets.forEach((bet) => {
+      let pnl = Number(bet.pnl || bet.profit || bet.points || bet.change || 0);
+
+      if (pnl === 0 && bet.amount) {
+        if (bet.status === 'WON' || bet.won === true || bet.result === 'WIN') {
+          pnl = Math.abs(Number(bet.amount));
+        } else if (bet.status === 'LOST' || bet.won === false || bet.result === 'LOSS') {
+          pnl = -Math.abs(Number(bet.amount));
+        }
+      }
+
       if (pnl > 0) {
         totalGains += pnl;
         wins++;
@@ -59,30 +72,37 @@ export async function POST(request) {
 
     const totalBets = wins + losses;
     const netProfit = totalGains - totalLosses;
-    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) + "%" : "0%";
+    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) + '%' : '0%';
     const totalVolume = totalGains + totalLosses;
-    const roi = totalVolume > 0 ? ((netProfit / totalVolume) * 100).toFixed(1) + "%" : "0%";
+    const roi = totalVolume > 0 ? ((netProfit / totalVolume) * 100).toFixed(1) + '%' : '0%';
+
+    const formatNum = (num) => {
+      if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    };
 
     cachedStats = {
-      totalProfit: (netProfit >= 0 ? "+" : "") + (netProfit / 1000).toFixed(1) + "K",
+      totalProfit: (netProfit >= 0 ? '+' : '-') + formatNum(Math.abs(netProfit)),
       winRate,
       roi,
       totalBets: totalBets.toString(),
-      totalGains: "+" + (totalGains / 1000).toFixed(1) + "K",
-      totalLosses: "-" + (totalLosses / 1000).toFixed(1) + "K",
-      avgBet: totalBets > 0 ? ((totalGains + totalLosses) / totalBets / 1000).toFixed(1) + "K" : "0K",
+      totalGains: '+' + formatNum(totalGains),
+      totalLosses: '-' + formatNum(totalLosses),
+      avgBet: totalBets > 0 ? formatNum((totalGains + totalLosses) / totalBets) : '0',
       winStreak: maxWinStreak.toString(),
       lossStreak: maxLossStreak.toString(),
-      wonLost: `${wins} / ${losses}`
+      wonLost: `${wins} / ${losses}`,
     };
 
-    return NextResponse.json({ success: true, stats: cachedStats }, {
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    });
+    return NextResponse.json(
+      { success: true, stats: cachedStats },
+      { headers: corsHeaders }
+    );
   } catch (err) {
     return NextResponse.json(
       { success: false, error: err.message },
-      { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
