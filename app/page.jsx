@@ -22,7 +22,7 @@ export default function DashboardPage() {
       }
     } catch (err) {
       setError(err.message);
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -47,16 +47,16 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: '#0e0919', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#a78bfa', fontSize: '18px', fontWeight: 'bold' }}>Ładowanie danych z konta...</p>
+      <div style={{ backgroundColor: '#0d0818', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#a78bfa', fontSize: '18px', fontWeight: 'bold' }}>Ładowanie statystyk...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ backgroundColor: '#0e0919', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ backgroundColor: '#181028', border: '1px solid #ef4444', padding: '24px', borderRadius: '12px', textAlign: 'center' }}>
+      <div style={{ backgroundColor: '#0d0818', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ backgroundColor: '#160e28', border: '1px solid #ef4444', padding: '24px', borderRadius: '12px', textAlign: 'center' }}>
           <p style={{ color: '#f87171' }}>Błąd: {error}</p>
           <button onClick={fetchLiveStats} style={{ marginTop: '16px', backgroundColor: '#7c3aed', color: '#fff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>
             Spróbuj ponownie
@@ -172,17 +172,17 @@ function SmallCard({ title, value, color, cardStyle }) {
 
 function PnLChart({ data }) {
   if (!data || data.length < 2) {
-    return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Brak wystarczającej liczby punktów do wykresu.</div>;
+    return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Brak danych do wygenerowania wykresu.</div>;
   }
 
   const pnlValues = data.map((d) => d.pnl);
-  const minPnL = Math.min(...pnlValues, 0);
-  const maxPnL = Math.max(...pnlValues, 100);
+  const minPnL = Math.min(...pnlValues);
+  const maxPnL = Math.max(...pnlValues);
   const range = maxPnL - minPnL || 1;
 
   const width = 800;
   const height = 240;
-  const padding = 10;
+  const padding = 15;
 
   const points = data.map((d, index) => {
     const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
@@ -191,7 +191,11 @@ function PnLChart({ data }) {
   });
 
   const pathD = `M ${points.join(" L ")}`;
-  const areaD = `${pathD} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+  const firstX = padding;
+  const lastX = width - padding;
+  const bottomY = height - padding;
+  const areaD = `${pathD} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
+
   const lastPnL = data[data.length - 1]?.pnl || 0;
   const lineColor = lastPnL >= 0 ? "#22c55e" : "#ef4444";
 
@@ -199,12 +203,12 @@ function PnLChart({ data }) {
     <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
       <defs>
         <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={lineColor} stopOpacity="0.4" />
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.35" />
           <stop offset="100%" stopColor={lineColor} stopOpacity="0.0" />
         </linearGradient>
       </defs>
       <path d={areaD} fill="url(#chartGrad)" />
-      <path d={pathD} fill="none" stroke={lineColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={pathD} fill="none" stroke={lineColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
