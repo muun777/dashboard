@@ -12,20 +12,44 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    // 1. Zawsze pobieramy najświeższe dane z API s7k4
     const USER_ID = '62122525';
-    const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=100&offset=0&userId=${USER_ID}`;
+    let allPredictions = [];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
 
-    const res = await fetch(externalApiUrl, {
-      cache: 'no-store' // Wymuszamy brak pamięci podręcznej – pobieraj ZAWSZE na żywo
-    });
+    // Pętla pobierająca wszystkie zakłady (All Time) strona po stronie
+    while (hasMore) {
+      const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
 
-    if (!res.ok) {
-      throw new Error(`Błąd połączenia z API s7k4: status ${res.status}`);
+      const res = await fetch(externalApiUrl, {
+        cache: 'no-store'
+      });
+
+      if (!res.ok) {
+        throw new Error(`Błąd połączenia z API s7k4: status ${res.status}`);
+      }
+
+      const data = await res.json();
+      const predictions = data.predictions || [];
+
+      if (predictions.length > 0) {
+        allPredictions = allPredictions.concat(predictions);
+        offset += limit;
+
+        // Jeśli zwrócono mniej niż limit, oznacza to, że osiągnęliśmy koniec historii
+        if (predictions.length < limit) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+
+      // Zabezpieczenie przed nieskończoną pętlą (maksymalnie 50 stron / 5000 zakładów)
+      if (offset >= 5000) {
+        hasMore = false;
+      }
     }
-
-    const data = await res.json();
-    const predictions = data.predictions || [];
 
     let totalBets = 0;
     let wins = 0;
@@ -33,8 +57,8 @@ export async function GET() {
     let totalWagered = 0;
     let totalWon = 0;
 
-    // 2. Przeliczamy zakład po zakładzie
-    predictions.forEach((p) => {
+    // Przeliczanie statystyk ze WSZYSTKICH pobranych zakładów
+    allPredictions.forEach((p) => {
       if (p.userBet) {
         totalBets++;
         const betAmount = Number(p.userBet.pointsBet || 0);
