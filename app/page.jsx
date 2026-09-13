@@ -1,191 +1,136 @@
-"use client";
+import React from 'react';
 
-import React, { useState } from "react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
-
-// Przykładowe dane do wykresu PnL
-const pnlData = [
-  { time: "Start", pnl: 0 },
-  { time: "Bet 1", pnl: 15000 },
-  { time: "Bet 2", pnl: 45000 },
-  { time: "Bet 3", pnl: 32000 },
-  { time: "Bet 4", pnl: 96400 },
-  { time: "Bet 5", pnl: 150000 },
-  { time: "Bet 6", pnl: 192800 },
-  { time: "Bet 7", pnl: 240000 },
-  { time: "Bet 8", pnl: 289100 },
-  { time: "Bet 9", pnl: 310000 },
-  { time: "Bet 10", pnl: 385500 },
-  { time: "Bet 11", pnl: 350000 },
-  { time: "Bet 12", pnl: 420000 },
-  { time: "Bet 13", pnl: 481900 },
-];
-
-export default function Dashboard() {
-  const [timeframe, setTimeframe] = useState("All");
+export default function Home() {
+  const stats = [
+    { label: "Win Rate", value: "64.6%", change: "+2.1%", positive: true },
+    { label: "ROI", value: "13.0%", change: "+0.5%", positive: true },
+    { label: "Total Bets", value: "489", change: "12 dzisiaj", neutral: true },
+    { label: "Total Gains", value: "+1.3M", change: "wygrane", positive: true },
+    { label: "Total Losses", value: "-794.3K", change: "przegrane", positive: false },
+    { label: "Avg Bet Size", value: "7.6K", change: "średni zakład", neutral: true },
+    { label: "Avg Win", value: "+4.0K", change: "śr. wygrana", positive: true },
+    { label: "Avg Loss", value: "-4.7K", change: "śr. przegrana", positive: false },
+    { label: "Win Streak", value: "14", change: "rekord", positive: true },
+    { label: "Loss Streak", value: "5", change: "seria", neutral: true },
+    { label: "Won / Lost", value: "316 / 169", change: "stosunek", neutral: true },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0d0914] text-white p-4 md:p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Nagłówek profilu */}
-        <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 shadow-lg">
-          <h1 className="text-2xl font-bold tracking-wide">cwelowiecki</h1>
-          <p className="text-xs text-purple-400 mt-1">Kick ID: 9532684</p>
+    <div style={{
+      backgroundColor: '#09090b',
+      color: '#ffffff',
+      minHeight: '100vh',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      padding: '32px 24px'
+    }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Nagłówek */}
+        <header style={{
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid #27272a',
+          paddingBottom: '20px',
+          marginBottom: '32px'
+        }}>
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#a855f7' }}>
+              cwelowiecki
+            </h1>
+            <p style={{ color: '#a1a1aa', fontSize: '14px', marginTop: '4px', margin: 0 }}>
+              Kick ID: <span style={{ color: '#e4e4e7' }}>9532684</span>
+            </p>
+          </div>
+          <div style={{
+            backgroundColor: '#18181b',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px solid #27272a',
+            textAlign: 'right'
+          }}>
+            <span style={{ fontSize: '12px', color: '#a1a1aa', display: 'block' }}>Total Profit/Loss</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#22c55e' }}>+481.9K</span>
+          </div>
+        </header>
+
+        {/* Kafelki ze statystykami */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: '16px',
+          marginBottom: '32px'
+        }}>
+          {stats.map((stat, idx) => (
+            <div key={idx} style={{
+              backgroundColor: '#18181b',
+              borderRadius: '12px',
+              padding: '20px',
+              border: '1px solid #27272a',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{ fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>
+                {stat.label}
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
+                {stat.value}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: stat.neutral ? '#a1a1aa' : stat.positive ? '#22c55e' : '#ef4444'
+              }}>
+                {stat.change}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Pierwszy rząd statystyk (Główne) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 text-center shadow-lg">
-            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block mb-2">
-              Total Profit/Loss
-            </span>
-            <span className="text-3xl font-extrabold text-[#00ff88]">
-              +481.9K
-            </span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 text-center shadow-lg">
-            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block mb-2">
-              Win Rate
-            </span>
-            <span className="text-3xl font-extrabold text-white">64.6%</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 text-center shadow-lg">
-            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block mb-2">
-              ROI
-            </span>
-            <span className="text-3xl font-extrabold text-white">13.0%</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 text-center shadow-lg">
-            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block mb-2">
-              Total Bets
-            </span>
-            <span className="text-3xl font-extrabold text-white">489</span>
-          </div>
-        </div>
-
-        {/* Drugi rząd statystyk */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Total Gains
-            </span>
-            <span className="text-xl font-bold text-[#00ff88]">+1.3M</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Total Losses
-            </span>
-            <span className="text-xl font-bold text-[#ff4a4a]">-794.3K</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Avg Bet Size
-            </span>
-            <span className="text-xl font-bold text-white">7.6K</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Avg Win
-            </span>
-            <span className="text-xl font-bold text-[#00ff88]">+4.0K</span>
-          </div>
-        </div>
-
-        {/* Trzeci rząd statystyk */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Avg Loss
-            </span>
-            <span className="text-xl font-bold text-[#ff4a4a]">-4.7K</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Win Streak
-            </span>
-            <span className="text-xl font-bold text-white">14</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Loss Streak
-            </span>
-            <span className="text-xl font-bold text-white">5</span>
-          </div>
-
-          <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-4 shadow-lg">
-            <span className="text-[10px] font-semibold text-purple-300 uppercase block mb-1">
-              Won / Lost
-            </span>
-            <span className="text-xl font-bold text-white">316 / 169</span>
-          </div>
-        </div>
-
-        {/* Sekcja Wykresu PnL */}
-        <div className="bg-[#1b112c] border border-[#2b1b44] rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <h2 className="text-lg font-bold text-white">Cumulative PnL</h2>
-            <div className="flex bg-[#0d0914] p-1 rounded-xl border border-[#2b1b44]">
-              {["1D", "7D", "30D", "All"].map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                    timeframe === tf
-                      ? "bg-[#7c3aed] text-white"
-                      : "text-purple-300 hover:text-white"
-                  }`}
-                >
-                  {tf}
+        {/* Sekcja Wykresu */}
+        <div style={{
+          backgroundColor: '#18181b',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid #27272a'
+        }}>
+          <div style={{
+            display: 'flex',
+            justify: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f4f4f5' }}>
+              Cumulative PnL
+            </h2>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['1D', '7D', '30D', 'All'].map((period, i) => (
+                <button key={period} style={{
+                  backgroundColor: i === 3 ? '#a855f7' : '#27272a',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}>
+                  {period}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Wykres Recharts */}
-          <div className="h-72 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={pnlData}>
-                <defs>
-                  <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00ff88" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} hide />
-                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0d0914",
-                    borderColor: "#7c3aed",
-                    borderRadius: "12px",
-                    color: "#fff",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pnl"
-                  stroke="#00ff88"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorPnl)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          {/* Podgląd miejsca na wykres */}
+          <div style={{
+            height: '240px',
+            backgroundColor: '#09090b',
+            borderRadius: '8px',
+            border: '1px dashed #3f3f46',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'center',
+            color: '#71717a',
+            fontSize: '14px'
+          }}>
+            [ Miejsce na interaktywny wykres Recharts / Chart.js ]
           </div>
         </div>
       </div>
