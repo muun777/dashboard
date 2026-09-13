@@ -9,17 +9,11 @@ const corsHeaders = {
 };
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { success: true, stats: cachedStats },
-    { headers: corsHeaders }
-  );
+  return NextResponse.json({ success: true, stats: cachedStats }, { headers: corsHeaders });
 }
 
 export async function POST(request) {
@@ -33,7 +27,7 @@ export async function POST(request) {
 
     if (!bets || bets.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Brak historii zakładów" },
+        { success: false, error: "Brak danych zakładów" },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -46,15 +40,22 @@ export async function POST(request) {
     let maxWinStreak = 0;
     let maxLossStreak = 0;
 
-    bets.forEach((bet) => {
-      let pnl = Number(bet.pnl || bet.profit || bet.points || bet.change || 0);
+    bets.forEach((item) => {
+      // Obsługa struktury userBet z s7k4
+      const uBet = item.userBet || item;
+      const status = (uBet.status || item.status || '').toUpperCase();
+      const points = Number(uBet.pointsBet || uBet.amount || uBet.points || item.pointsBet || 0);
 
-      if (pnl === 0 && bet.amount) {
-        if (bet.status === 'WON' || bet.won === true || bet.result === 'WIN') {
-          pnl = Math.abs(Number(bet.amount));
-        } else if (bet.status === 'LOST' || bet.won === false || bet.result === 'LOSS') {
-          pnl = -Math.abs(Number(bet.amount));
-        }
+      let pnl = 0;
+
+      if (status === 'WIN' || status === 'WON') {
+        // Jeśli jest podany kurs (odd/multiplier)
+        const odds = Number(uBet.odds || item.odds?.option1 || 1.5);
+        pnl = points > 0 ? points * (odds - 1) : 1000;
+      } else if (status === 'LOSS' || status === 'LOST') {
+        pnl = points > 0 ? -points : -1000;
+      } else if (uBet.pnl !== undefined) {
+        pnl = Number(uBet.pnl);
       }
 
       if (pnl > 0) {
@@ -79,7 +80,7 @@ export async function POST(request) {
     const formatNum = (num) => {
       if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
       if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
-      return num.toString();
+      return Math.round(num).toString();
     };
 
     cachedStats = {
@@ -95,14 +96,8 @@ export async function POST(request) {
       wonLost: `${wins} / ${losses}`,
     };
 
-    return NextResponse.json(
-      { success: true, stats: cachedStats },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ success: true, stats: cachedStats }, { headers: corsHeaders });
   } catch (err) {
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
   }
 }
