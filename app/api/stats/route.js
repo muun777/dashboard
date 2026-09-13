@@ -18,17 +18,12 @@ export async function GET() {
     const limit = 100;
     let hasMore = true;
 
-    // Pętla pobierająca wszystkie zakłady (All Time) strona po stronie
+    // Pobieramy całą historię zakładów (All Time)
     while (hasMore) {
       const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
+      const res = await fetch(externalApiUrl, { cache: 'no-store' });
 
-      const res = await fetch(externalApiUrl, {
-        cache: 'no-store'
-      });
-
-      if (!res.ok) {
-        throw new Error(`Błąd połączenia z API s7k4: status ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Błąd API s7k4: status ${res.status}`);
 
       const data = await res.json();
       const predictions = data.predictions || [];
@@ -36,69 +31,103 @@ export async function GET() {
       if (predictions.length > 0) {
         allPredictions = allPredictions.concat(predictions);
         offset += limit;
-
-        // Jeśli zwrócono mniej niż limit, oznacza to, że osiągnęliśmy koniec historii
-        if (predictions.length < limit) {
-          hasMore = false;
-        }
+        if (predictions.length < limit) hasMore = false;
       } else {
         hasMore = false;
       }
 
-      // Zabezpieczenie przed nieskończoną pętlą (maksymalnie 50 stron / 5000 zakładów)
-      if (offset >= 5000) {
-        hasMore = false;
-      }
+      if (offset >= 5000) hasMore = false;
     }
+
+    // Sortujemy zakłady chronologicznie (od najstarszego do najnowszego) do wykresu PnL
+    const sortedBets = allPredictions
+      .filter((p) => p.userBet)
+      .sort((a, b) => new Date(a.created_at || a.updated_at || 0) - new Date(b.created_at || b.updated_at || 0));
 
     let totalBets = 0;
     let wins = 0;
     let losses = 0;
     let totalWagered = 0;
-    let totalWon = 0;
+    let totalGains = 0;
+    let totalLossesAmount = 0;
 
-    // Przeliczanie statystyk ze WSZYSTKICH pobranych zakładów
-    allPredictions.forEach((p) => {
-      if (p.userBet) {
-        totalBets++;
-        const betAmount = Number(p.userBet.pointsBet || 0);
-        const wonAmount = Number(p.userBet.pointsWon || 0);
+    let currentWinStreak = 0;
+    let maxWinStreak = 0;
+    let currentLossStreak = 0;
+    let maxLossStreak = 0;
 
-        totalWagered += betAmount;
+    let cumulativeProfit = 0;
+    const chartData = [];
 
-        if (p.userBet.status === 'won' || wonAmount > 0) {
-          wins++;
-          totalWon += wonAmount;
-        } else {
-          losses++;
-        }
+    sortedBets.forEach((p) => {
+      totalBets++;
+      const betAmount = Number(p.userBet.pointsBet || 0);
+      const wonAmount = Number(p.userBet.pointsWon || 0);
+      const profit = wonAmount > 0 ? wonAmount - betAmount : -betAmount;
+
+      totalWagered += betAmount;
+      cumulativeProfit += profit;
+
+      const betDate = new Date(p.created_at || p.updated_at || Date.now());
+
+      chartData.push({
+        timestamp: betDate.getTime(),
+        dateStr: betDate.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' }),
+        pnl: cumulativeProfit,
+        profit: profit
+      });
+
+      if (profit > 0) {
+        wins++;
+        totalGains += profit;
+        currentWinStreak++;
+        if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+        currentLossStreak = 0;
+      } else {
+        losses++;
+        totalLossesAmount += Math.abs(profit);
+        currentLossStreak++;
+        if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+        currentWinStreak = 0;
       }
     });
 
-    const netProfit = totalWon - totalWagered;
-    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) + '%' : '0%';
-    const roi = totalWagered > 0 ? ((netProfit / totalWagered) * 100).toFixed(2) + '%' : '0%';
+    const netProfit = totalGains - totalLossesAmount;
+    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) : '0';
+    const roi = totalWagered > 0 ? ((netProfit / totalWagered) * 100).toFixed(1) : '0';
 
     const formatNum = (num) => {
-      if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-      if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
-      return Math.round(num).toString();
+      const sign = num < 0 ? '-' : num > 0 ? '+' : '';
+      const abs = Math.abs(num);
+      if (abs >= 1000000) return sign + (abs / 1000000).toFixed(1) + 'M';
+      if (abs >= 1000) return sign + (abs / 1000).toFixed(1) + 'K';
+      return sign + Math.round(abs).toString();
     };
 
-    const calculatedStats = {
-      totalProfit: (netProfit >= 0 ? '+' : '') + formatNum(netProfit),
-      totalGains: '+' + formatNum(totalWon),
-      totalLosses: '-' + formatNum(totalWagered - (netProfit > 0 ? totalWon - netProfit : 0)),
-      avgBet: totalBets > 0 ? formatNum(totalWagered / totalBets) : '0',
-      winRate: winRate,
-      roi: roi,
+    const avgBet = totalBets > 0 ? Math.round(totalWagered / totalBets) : 0;
+    const avgWin = wins > 0 ? Math.round(totalGains / wins) : 0;
+    const avgLoss = losses > 0 ? Math.round(totalLossesAmount / losses) : 0;
+
+    const stats = {
+      username: 'cwelowiecki',
+      kickId: USER_ID,
+      totalProfit: formatNum(netProfit),
+      netProfitRaw: netProfit,
+      winRate: winRate + '%',
+      roi: (roi >= 0 ? roi : roi) + '%',
       totalBets: totalBets.toString(),
-      winStreak: '-',
-      lossStreak: '-',
-      wonLost: `${wins} / ${losses}`
+      totalGains: formatNum(totalGains),
+      totalLosses: '-' + formatNum(totalLossesAmount).replace('+', '').replace('-', ''),
+      avgBetSize: formatNum(avgBet).replace('+', ''),
+      avgWin: formatNum(avgWin),
+      avgLoss: '-' + formatNum(avgLoss).replace('+', '').replace('-', ''),
+      winStreak: maxWinStreak.toString(),
+      lossStreak: maxLossStreak.toString(),
+      wonLost: `${wins}/${losses}`,
+      chartData: chartData
     };
 
-    return NextResponse.json({ success: true, stats: calculatedStats }, { headers: corsHeaders });
+    return NextResponse.json({ success: true, stats }, { headers: corsHeaders });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
   }
