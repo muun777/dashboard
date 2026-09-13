@@ -1,103 +1,79 @@
 import { NextResponse } from 'next/server';
 
-let cachedStats = null;
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders });
-}
-
-export async function GET() {
-  return NextResponse.json({ success: true, stats: cachedStats }, { headers: corsHeaders });
-}
-
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const body = await request.json();
-    let bets = body.bets || body;
+    const body = await req.json();
 
-    if (!Array.isArray(bets)) {
-      bets = bets.predictions || bets.data || bets.history || [];
+    // 1. Obsługa danych zbiorczych bezpośrednio z profilu (profit: 6901, wagered: 1876052)
+    if (body.profileStats) {
+      const { profit, wagered, points } = body.profileStats;
+      const profitNum = Number(profit || 0);
+      const wageredNum = Number(wagered || 0);
+
+      const roiValue = wageredNum > 0 ? ((profitNum / wageredNum) * 100).toFixed(2) : "0";
+
+      return NextResponse.json({
+        success: true,
+        stats: {
+          totalProfit: profitNum >= 0 ? `+${profitNum}` : `${profitNum}`,
+          totalWagered: `${wageredNum}`,
+          totalPoints: `${points || 0}`,
+          roi: `${roiValue}%`,
+          totalBets: "N/A (Dane zbiorcze)",
+          winRate: "N/A"
+        }
+      });
     }
 
-    if (!bets || bets.length === 0) {
+    // 2. Obsługa listy pojedynczych zakładów (jeśli tablica bets zostanie przesłana)
+    const bets = body.bets || [];
+
+    if (!bets.length) {
       return NextResponse.json(
-        { success: false, error: "Brak danych zakładów" },
-        { status: 400, headers: corsHeaders }
+        { success: false, error: 'Brak danych zakładów oraz braki w profilu.' },
+        { status: 400 }
       );
     }
 
+    let totalProfit = 0;
     let totalGains = 0;
     let totalLosses = 0;
     let wins = 0;
     let losses = 0;
-    let currentStreak = 0;
-    let maxWinStreak = 0;
-    let maxLossStreak = 0;
 
-    bets.forEach((item) => {
-      // Obsługa struktury userBet z s7k4
-      const uBet = item.userBet || item;
-      const status = (uBet.status || item.status || '').toUpperCase();
-      const points = Number(uBet.pointsBet || uBet.amount || uBet.points || item.pointsBet || 0);
-
-      let pnl = 0;
-
-      if (status === 'WIN' || status === 'WON') {
-        // Jeśli jest podany kurs (odd/multiplier)
-        const odds = Number(uBet.odds || item.odds?.option1 || 1.5);
-        pnl = points > 0 ? points * (odds - 1) : 1000;
-      } else if (status === 'LOSS' || status === 'LOST') {
-        pnl = points > 0 ? -points : -1000;
-      } else if (uBet.pnl !== undefined) {
-        pnl = Number(uBet.pnl);
-      }
-
-      if (pnl > 0) {
-        totalGains += pnl;
+    bets.forEach(b => {
+      const points = Number(b.pointsBet || b.amount || 0);
+      if (b.status === 'WIN') {
         wins++;
-        currentStreak = currentStreak > 0 ? currentStreak + 1 : 1;
-        if (currentStreak > maxWinStreak) maxWinStreak = currentStreak;
-      } else if (pnl < 0) {
-        totalLosses += Math.abs(pnl);
+        totalGains += points;
+        totalProfit += points;
+      } else if (b.status === 'LOSS') {
         losses++;
-        currentStreak = currentStreak < 0 ? currentStreak - 1 : -1;
-        if (Math.abs(currentStreak) > maxLossStreak) maxLossStreak = Math.abs(currentStreak);
+        totalLosses += points;
+        totalProfit -= points;
       }
     });
 
-    const totalBets = wins + losses;
-    const netProfit = totalGains - totalLosses;
-    const winRate = totalBets > 0 ? ((wins / totalBets) * 100).toFixed(1) + '%' : '0%';
-    const totalVolume = totalGains + totalLosses;
-    const roi = totalVolume > 0 ? ((netProfit / totalVolume) * 100).toFixed(1) + '%' : '0%';
+    const totalBets = bets.length;
+    const winRate = totalBets > 0 ? `${Math.round((wins / totalBets) * 100)}%` : '0%';
 
-    const formatNum = (num) => {
-      if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-      if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
-      return Math.round(num).toString();
-    };
+    return NextResponse.json({
+      success: true,
+      stats: {
+        totalProfit: totalProfit >= 0 ? `+${totalProfit}` : `${totalProfit}`,
+        winRate,
+        totalBets: `${totalBets}`,
+        totalGains: `${totalGains}`,
+        totalLosses: `${totalLosses}`,
+        wins: `${wins}`,
+        losses: `${losses}`
+      }
+    });
 
-    cachedStats = {
-      totalProfit: (netProfit >= 0 ? '+' : '-') + formatNum(Math.abs(netProfit)),
-      winRate,
-      roi,
-      totalBets: totalBets.toString(),
-      totalGains: '+' + formatNum(totalGains),
-      totalLosses: '-' + formatNum(totalLosses),
-      avgBet: totalBets > 0 ? formatNum((totalGains + totalLosses) / totalBets) : '0',
-      winStreak: maxWinStreak.toString(),
-      lossStreak: maxLossStreak.toString(),
-      wonLost: `${wins} / ${losses}`,
-    };
-
-    return NextResponse.json({ success: true, stats: cachedStats }, { headers: corsHeaders });
-  } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
