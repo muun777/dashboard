@@ -13,55 +13,53 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     const USER_ID = '62122525';
-    let allPredictionsMap = new Map(); // Mapa zapobiega dublowaniu zakładów
+    let allPredictionsMap = new Map();
     let detectedUsername = 'NajwiekszyGyat';
 
-    // Pobieramy zakłady ze wszystkich możliwych statusów, aby mieć 100% pewności
-    const statuses = ['resolved', 'all'];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
 
-    for (const status of statuses) {
-      let offset = 0;
-      const limit = 100;
-      let hasMore = true;
+    // Pobieramy całą historię zakładów
+    while (hasMore) {
+      const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
+      const res = await fetch(externalApiUrl, { cache: 'no-store' });
 
-      while (hasMore) {
-        const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=${status}&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
-        const res = await fetch(externalApiUrl, { cache: 'no-store' });
+      if (!res.ok) break;
 
-        if (!res.ok) break;
+      const data = await res.json();
+      const predictions = data.predictions || [];
 
-        const data = await res.json();
-        const predictions = data.predictions || [];
+      if (predictions.length > 0) {
+        predictions.forEach((p) => {
+          if (p.userBet) {
+            const betKey = p.id || p._id || `${p.created_at}_${p.userBet.pointsBet}`;
+            allPredictionsMap.set(betKey, p);
 
-        if (predictions.length > 0) {
-          predictions.forEach((p) => {
-            if (p.userBet) {
-              // Unikalny klucz zakładu (id lub timestamp + kwota)
-              const betKey = p.id || p._id || `${p.created_at}_${p.userBet.pointsBet}`;
-              allPredictionsMap.set(betKey, p);
-
-              if (p.userBet.username || p.userBet.user?.username) {
-                detectedUsername = p.userBet.username || p.userBet.user?.username;
-              }
+            if (p.userBet.username || p.userBet.user?.username) {
+              detectedUsername = p.userBet.username || p.userBet.user?.username;
             }
-          });
+          }
+        });
 
-          offset += limit;
-          if (predictions.length < limit) hasMore = false;
-        } else {
-          hasMore = false;
-        }
-
-        // Zabezpieczenie przed pętlą (pobiera do 10 000 zakładów)
-        if (offset >= 10000) hasMore = false;
+        offset += limit;
+        if (predictions.length < limit) hasMore = false;
+      } else {
+        hasMore = false;
       }
+
+      if (offset >= 10000) hasMore = false;
     }
 
     const allPredictions = Array.from(allPredictionsMap.values());
 
-    const sortedBets = allPredictions
-      .filter((p) => p.userBet)
-      .sort((a, b) => new Date(a.created_at || a.updated_at || 0) - new Date(b.created_at || b.updated_at || 0));
+    // POPRAWNE SORTOWANIE: Od najstarszego do najnowszego
+    const sortedBets = allPredictions.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      return (a.id || 0) > (b.id || 0) ? 1 : -1;
+    });
 
     let totalBets = 0;
     let wins = 0;
@@ -76,7 +74,14 @@ export async function GET() {
     let maxLossStreak = 0;
 
     let cumulativeProfit = 0;
-    const chartData = [];
+    
+    // Punkt 0 na początku wykresu
+    const chartData = [
+      {
+        timestamp: sortedBets.length > 0 ? new Date(sortedBets[0].created_at || Date.now()).getTime() - 1000 : Date.now(),
+        pnl: 0
+      }
+    ];
 
     sortedBets.forEach((p) => {
       totalBets++;
