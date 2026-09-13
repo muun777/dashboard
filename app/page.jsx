@@ -22,7 +22,7 @@ export default function DashboardPage() {
       }
     } catch (err) {
       setError(err.message);
-    } fontally {
+    } finally {
       setLoading(false);
     }
   };
