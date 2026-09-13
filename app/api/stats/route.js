@@ -17,8 +17,8 @@ export async function GET() {
     let offset = 0;
     const limit = 100;
     let hasMore = true;
+    let detectedUsername = 'NajwiekszyGyat'; // Domyślna nazwa z Twojego konta na Kicku
 
-    // Pobieramy całą historię zakładów (All Time)
     while (hasMore) {
       const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
       const res = await fetch(externalApiUrl, { cache: 'no-store' });
@@ -29,6 +29,12 @@ export async function GET() {
       const predictions = data.predictions || [];
 
       if (predictions.length > 0) {
+        // Próbujemy wyciągnąć nazwę użytkownika z pierwszego zakłady
+        const sampleBet = predictions.find(p => p.userBet?.username || p.userBet?.user?.username);
+        if (sampleBet) {
+          detectedUsername = sampleBet.userBet.username || sampleBet.userBet.user?.username || detectedUsername;
+        }
+
         allPredictions = allPredictions.concat(predictions);
         offset += limit;
         if (predictions.length < limit) hasMore = false;
@@ -39,7 +45,6 @@ export async function GET() {
       if (offset >= 5000) hasMore = false;
     }
 
-    // Sortujemy zakłady chronologicznie (od najstarszego do najnowszego) do wykresu PnL
     const sortedBets = allPredictions
       .filter((p) => p.userBet)
       .sort((a, b) => new Date(a.created_at || a.updated_at || 0) - new Date(b.created_at || b.updated_at || 0));
@@ -72,9 +77,7 @@ export async function GET() {
 
       chartData.push({
         timestamp: betDate.getTime(),
-        dateStr: betDate.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' }),
-        pnl: cumulativeProfit,
-        profit: profit
+        pnl: cumulativeProfit
       });
 
       if (profit > 0) {
@@ -109,7 +112,7 @@ export async function GET() {
     const avgLoss = losses > 0 ? Math.round(totalLossesAmount / losses) : 0;
 
     const stats = {
-      username: 'cwelowiecki',
+      username: detectedUsername,
       kickId: USER_ID,
       totalProfit: formatNum(netProfit),
       netProfitRaw: netProfit,
