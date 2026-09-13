@@ -1,111 +1,120 @@
 "use client";
-import { useEffect, useState } from 'react';
 
-export default function Dashboard() {
+import { useEffect, useState } from "react";
+
+export default function DashboardPage() {
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/stats')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setStats(data.stats);
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (!res.ok) {
+          throw new Error("Błąd podczas pobierania danych");
         }
-      });
+        const data = await res.json();
+        if (data.success && data.stats) {
+          setStats(data.stats);
+        } else {
+          throw new Error(data.error || "Brak dostępnych statystyk");
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
   }, []);
 
-  if (!stats) return <p className="text-white p-4">Ładowanie statystyk...</p>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
+          <p className="mt-4 text-slate-400">Ładowanie statystyk...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <div className="rounded-lg border border-red-500/30 bg-red-950/20 p-6 text-center">
+          <p className="text-red-400">Błąd: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500"
+          >
+            Spróbuj ponownie
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h1>Profit: {stats.totalProfit}</h1>
-      <h1>Obrót: {stats.totalGains}</h1>
-      <h1>Wygrane/Przegrane: {stats.wonLost}</h1>
-    </div>
+    <main className="min-h-screen bg-slate-950 p-6 text-white md:p-12">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-8 border-b border-slate-800 pb-4">
+          <h1 className="text-3xl font-bold tracking-tight text-purple-400">
+            Dashboard Statystyk
+          </h1>
+          <p className="text-sm text-slate-400">Podsumowanie wyników z zakładów</p>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard 
+            title="Całkowity Profit" 
+            value={stats.totalProfit} 
+            color={stats.totalProfit?.startsWith("+") ? "text-green-400" : "text-red-400"} 
+          />
+          <StatCard 
+            title="Całkowity Obrót (Wagered)" 
+            value={stats.totalGains || stats.totalWagered} 
+            color="text-purple-400" 
+          />
+          <StatCard 
+            title="Win Rate" 
+            value={stats.winRate} 
+            color="text-blue-400" 
+          />
+          <StatCard 
+            title="Punkty / Saldo" 
+            value={stats.wonLost || stats.totalPoints} 
+            color="text-yellow-400" 
+          />
+          <StatCard 
+            title="Średnia Stawka" 
+            value={stats.avgBet || "N/A"} 
+          />
+          <StatCard 
+            title="ROI" 
+            value={stats.roi} 
+          />
+          <StatCard 
+            title="Liczba Zakładów" 
+            value={stats.totalBets} 
+          />
+          <StatCard 
+            title="Win / Loss Streak" 
+            value={`${stats.winStreak || 0} / ${stats.lossStreak || 0}`} 
+          />
+        </div>
+      </div>
+    </main>
   );
 }
 
-  const statsList = [
-    { label: "Win Rate", value: stats?.winRate || "0%", change: "wygrane", positive: true },
-    { label: "ROI", value: stats?.roi || "0%", change: "zwrot", positive: true },
-    { label: "Total Bets", value: stats?.totalBets || "0", change: "ogółem", neutral: true },
-    { label: "Total Gains", value: stats?.totalGains || "0K", change: "wygrane", positive: true },
-    { label: "Total Losses", value: stats?.totalLosses || "0K", change: "przegrane", positive: false },
-    { label: "Avg Bet Size", value: stats?.avgBet || "0K", change: "średni zakład", neutral: true },
-    { label: "Win Streak", value: stats?.winStreak || "0", change: "rekord", positive: true },
-    { label: "Loss Streak", value: stats?.lossStreak || "0", change: "seria", neutral: true },
-    { label: "Won / Lost", value: stats?.wonLost || "0 / 0", change: "stosunek", neutral: true },
-  ];
-
+function StatCard({ title, value, color = "text-white" }) {
   return (
-    <div style={{
-      backgroundColor: '#09090b',
-      color: '#ffffff',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      padding: '32px 24px'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid #27272a',
-          paddingBottom: '20px',
-          marginBottom: '32px'
-        }}>
-          <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: '#a855f7' }}>
-              NajwiekszyGyat
-            </h1>
-            <p style={{ color: '#a1a1aa', fontSize: '14px', marginTop: '4px', margin: 0 }}>
-              Profil Kick / s7k4
-            </p>
-          </div>
-          <div style={{
-            backgroundColor: '#18181b',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            border: '1px solid #27272a',
-            textAlign: 'right'
-          }}>
-            <span style={{ fontSize: '12px', color: '#a1a1aa', display: 'block' }}>Total Profit/Loss</span>
-            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#22c55e' }}>
-              {loading ? "Ładowanie..." : (stats?.totalProfit || "0K")}
-            </span>
-          </div>
-        </header>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-          gap: '16px',
-          marginBottom: '32px'
-        }}>
-          {statsList.map((stat, idx) => (
-            <div key={idx} style={{
-              backgroundColor: '#18181b',
-              borderRadius: '12px',
-              padding: '20px',
-              border: '1px solid #27272a',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }}>
-              <div style={{ fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>
-                {stat.label}
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
-                {stat.value}
-              </div>
-              <div style={{
-                fontSize: '12px',
-                color: stat.neutral ? '#a1a1aa' : stat.positive ? '#22c55e' : '#ef4444'
-              }}>
-                {stat.change}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{title}</p>
+      <p className={`mt-2 text-2xl font-bold ${color}`}>{value || "—"}</p>
     </div>
   );
 }
