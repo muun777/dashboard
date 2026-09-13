@@ -1,28 +1,29 @@
 "use client";
+import { useEffect, useState } from 'react';
 
-import React, { useState, useEffect } from 'react';
-
-export default function Home() {
+export default function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/stats');
-        const json = await res.json();
-        if (json.success && json.stats) {
-          setStats(json.stats);
+    fetch('/api/stats')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setStats(data.stats);
         }
-      } catch (e) {
-        console.error("Błąd pobierania statystyk:", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadStats();
+      });
   }, []);
+
+  if (!stats) return <p className="text-white p-4">Ładowanie statystyk...</p>;
+
+  return (
+    <div>
+      <h1>Profit: {stats.totalProfit}</h1>
+      <h1>Obrót: {stats.totalGains}</h1>
+      <h1>Wygrane/Przegrane: {stats.wonLost}</h1>
+    </div>
+  );
+}
 
   const statsList = [
     { label: "Win Rate", value: stats?.winRate || "0%", change: "wygrane", positive: true },
