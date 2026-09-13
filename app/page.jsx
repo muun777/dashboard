@@ -41,7 +41,7 @@ export default function DashboardPage() {
     if (timeframe === "7D") days = 7;
     const cutoff = now - days * 24 * 60 * 60 * 1000;
 
-    const filtered = stats.chartData.filter((d) => d.timestamp >= cutoff);
+    const filtered = stats.chartData.filter((d) => d.timestamp >= cutoff || d.timestamp === 0);
     return filtered.length > 0 ? filtered : stats.chartData;
   }, [stats, timeframe]);
 
@@ -142,7 +142,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ height: '260px', width: '100%' }}>
+          <div style={{ height: '280px', width: '100%' }}>
             <PnLChart data={filteredChartData} />
           </div>
         </div>
@@ -176,24 +176,30 @@ function PnLChart({ data }) {
   }
 
   const pnlValues = data.map((d) => d.pnl);
-  const minPnL = Math.min(...pnlValues);
-  const maxPnL = Math.max(...pnlValues);
+  let rawMin = Math.min(...pnlValues);
+  let rawMax = Math.max(...pnlValues);
+
+  // Zapewniamy marginesy u góry i na dole wykresu
+  const paddingMargin = (rawMax - rawMin) * 0.1 || 10;
+  const minPnL = rawMin - paddingMargin;
+  const maxPnL = rawMax + paddingMargin;
   const range = maxPnL - minPnL || 1;
 
   const width = 800;
-  const height = 240;
-  const padding = 15;
+  const height = 260;
+  const paddingX = 10;
+  const paddingY = 15;
 
   const points = data.map((d, index) => {
-    const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
-    const y = height - padding - ((d.pnl - minPnL) / range) * (height - 2 * padding);
-    return `${x},${y}`;
+    const x = paddingX + (index / (data.length - 1)) * (width - 2 * paddingX);
+    const y = height - paddingY - ((d.pnl - minPnL) / range) * (height - 2 * paddingY);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
 
   const pathD = `M ${points.join(" L ")}`;
-  const firstX = padding;
-  const lastX = width - padding;
-  const bottomY = height - padding;
+  const firstX = paddingX;
+  const lastX = width - paddingX;
+  const bottomY = height - paddingY;
   const areaD = `${pathD} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
 
   const lastPnL = data[data.length - 1]?.pnl || 0;
