@@ -13,14 +13,13 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     const USER_ID = '62122525';
-    let allPredictionsMap = new Map();
-    let detectedUsername = 'NajwiekszyGyat';
-
+    let rawPredictions = [];
     let offset = 0;
     const limit = 100;
     let hasMore = true;
+    let detectedUsername = 'NajwiekszyGyat';
 
-    // Pobieramy całą historię zakładów
+    // Pobieramy zakłady z API s7k4
     while (hasMore) {
       const externalApiUrl = `https://s7k4.vercel.app/api/predictions?status=resolved&limit=${limit}&offset=${offset}&userId=${USER_ID}`;
       const res = await fetch(externalApiUrl, { cache: 'no-store' });
@@ -31,17 +30,7 @@ export async function GET() {
       const predictions = data.predictions || [];
 
       if (predictions.length > 0) {
-        predictions.forEach((p) => {
-          if (p.userBet) {
-            const betKey = p.id || p._id || `${p.created_at}_${p.userBet.pointsBet}`;
-            allPredictionsMap.set(betKey, p);
-
-            if (p.userBet.username || p.userBet.user?.username) {
-              detectedUsername = p.userBet.username || p.userBet.user?.username;
-            }
-          }
-        });
-
+        rawPredictions = rawPredictions.concat(predictions);
         offset += limit;
         if (predictions.length < limit) hasMore = false;
       } else {
@@ -51,15 +40,14 @@ export async function GET() {
       if (offset >= 10000) hasMore = false;
     }
 
-    const allPredictions = Array.from(allPredictionsMap.values());
+    // Wyciągamy tylko zakłady gracza i ODWRACAMY KOLEJNOŚĆ (od najstarszego do najnowszego)
+    const validBets = rawPredictions
+      .filter((p) => p && p.userBet)
+      .reverse(); // API zwraca najnowsze jako pierwsze, więc reverse() układa je chronologicznie!
 
-    // POPRAWNE SORTOWANIE: Od najstarszego do najnowszego
-    const sortedBets = allPredictions.sort((a, b) => {
-      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
-      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
-      if (dateA !== dateB) return dateA - dateB;
-      return (a.id || 0) > (b.id || 0) ? 1 : -1;
-    });
+    if (validBets.length > 0 && validBets[0].userBet?.username) {
+      detectedUsername = validBets[0].userBet.username;
+    }
 
     let totalBets = 0;
     let wins = 0;
@@ -74,16 +62,9 @@ export async function GET() {
     let maxLossStreak = 0;
 
     let cumulativeProfit = 0;
-    
-    // Punkt 0 na początku wykresu
-    const chartData = [
-      {
-        timestamp: sortedBets.length > 0 ? new Date(sortedBets[0].created_at || Date.now()).getTime() - 1000 : Date.now(),
-        pnl: 0
-      }
-    ];
+    const chartData = [{ timestamp: 0, pnl: 0 }]; // Punkt zero na samym starcie konta
 
-    sortedBets.forEach((p) => {
+    validBets.forEach((p, idx) => {
       totalBets++;
       const betAmount = Number(p.userBet.pointsBet || 0);
       const wonAmount = Number(p.userBet.pointsWon || 0);
@@ -92,10 +73,10 @@ export async function GET() {
       totalWagered += betAmount;
       cumulativeProfit += profit;
 
-      const betDate = new Date(p.created_at || p.updated_at || Date.now());
+      const timestamp = new Date(p.created_at || p.updated_at || Date.now()).getTime() || idx;
 
       chartData.push({
-        timestamp: betDate.getTime(),
+        timestamp: timestamp,
         pnl: cumulativeProfit
       });
 
